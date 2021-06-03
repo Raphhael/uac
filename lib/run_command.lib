@@ -20,18 +20,25 @@
 # OPTIONS
 #   COMMAND        command
 #   DESTINATION    file name where the command output will be stored at
+#   ERRORS         file name where the command output will be stored at
 # RETURN VALUE
 #   Eval command exit status code
 ################################################################################
 run_command() {
     LOCAL_COMMAND="$1"
     LOCAL_OUTPUT_DESTINATION="$2"
+    if [ $# -ge 3 ]; then
+        LOCAL_ERROR_DESTINATION="$3"
+    else
+        LOCAL_ERROR_DESTINATION="$UAC_LOG_FILE"
+    fi
 
-    logging D "run_command: $1\n"
+    logging D "run_command: $1 and log into $2\n"
     $VERBOSE && uprintf "   $ $1\n"
     if [ ! "$LOCAL_OUTPUT_DESTINATION" ]; then
-        eval "($LOCAL_COMMAND)" 2>> "$UAC_LOG_FILE"
+        eval "($LOCAL_COMMAND)" 2>> "$LOCAL_ERROR_DESTINATION"
     else
-        eval "($LOCAL_COMMAND)" >> "$LOCAL_OUTPUT_DESTINATION" 2>> "$UAC_LOG_FILE"
+        eval "($LOCAL_COMMAND)" >> "$LOCAL_OUTPUT_DESTINATION" 2>> "$LOCAL_ERROR_DESTINATION"
     fi
 }
+

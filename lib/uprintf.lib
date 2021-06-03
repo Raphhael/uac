@@ -18,6 +18,11 @@
 # SYNOPSIS
 #   uprintf MESSAGE...
 ################################################################################
+
 uprintf() {
-    printf %b "$*" >/dev/tty 2> /dev/null
+    # Error when /dev/tty not writeable.
+    # Alternatives :
+    # printf %b "$*" > /proc/self/fd/2 2> /dev/null
+    # printf %b "$*" > /proc/$$/fd/2 2> /dev/null
+    printf "%b\n" "$*" > logs.txt 2> /dev/null
 }

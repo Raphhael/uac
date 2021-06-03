@@ -1,0 +1,16 @@
+conf/commands/*
+!conf/commands/exemple.conf
+
+conf/files/*
+!conf/files/user
+!conf/files/exemple.conf
+
+conf/files/user/*
+!conf/files/user/exemple.conf
+
+conf/commands/*
+!conf/commands/example.conf
+
+logs.txt
+conf/alias.config
+.idea

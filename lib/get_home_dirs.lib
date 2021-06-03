@@ -1,0 +1,17 @@
+################################################################################
+# NAME
+#   get_home_dirs - get home directories
+# SYNOPSIS
+#   get_home_dirs
+# RETURN VALUE
+#   list of home dirs
+################################################################################
+get_machine_arch() {
+    case "$PROFILE" in
+        "aix"     ) uname -p ;;
+        "bsd"     ) uname -m ;;
+        "linux"   ) uname -m ;;
+        "macos"   ) uname -m ;;
+        "solaris" ) uname -p ;;
+    esac
+}

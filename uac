@@ -51,7 +51,7 @@ init_vars
 trap terminate INT TERM
 
 SHIFT_OPT=""
-while getopts "apnuywsdkblfe:P:R:T:VDUvh" opt; do
+while getopts "apnuywsdblf:c:o:k:e:P:R:T:VDUvh" opt; do
     case $opt in
         # collectors
         a)  COLLECTOR_PROCESS=true
@@ -67,6 +67,29 @@ while getopts "apnuywsdkblfe:P:R:T:VDUvh" opt; do
             COLLECTOR_SUSPICIOUS_FILES=true
             ANY_COLLECTOR_SELECTED=true
             SHIFT_OPT="$SHIFT_OPT A"
+            ;;
+        c)  COLLECTOR_COMMANDS=true
+            COLLECTOR_COMMANDS_ARGS="$COLLECTOR_COMMANDS_ARGS,`echo "$OPTARG" | sed 's/ //g'`"
+            ANY_COLLECTOR_SELECTED=true
+            SHIFT_OPT="$SHIFT_OPT c $OPTARG"
+            ;;
+        o)  COLLECTOR_OPTIONS=true
+            COLLECTOR_OPTIONS_ARGS="$COLLECTOR_OPTIONS_ARGS,`echo "$OPTARG" | sed 's/ //g'`"
+            ANY_COLLECTOR_SELECTED=true
+            SHIFT_OPT="$SHIFT_OPT o $OPTARG"
+            ;;
+        k)  COLLECTOR_COMMANDS=true
+            COLLECTOR_OPTIONS=true
+            COLLECTOR_COMMANDS_ARGS=""
+            COLLECTOR_OPTIONS_ARGS=""
+            USER_ALIASES="`echo "$OPTARG" | sed 's/,/\n/g' | sort | uniq`"
+            for alias in $USER_ALIASES
+            do
+                COLLECTOR_OPTIONS_ARGS="$COLLECTOR_OPTIONS_ARGS,`eval "(echo \\$CUSTOM_ALIAS_$alias)"`"
+                COLLECTOR_COMMANDS_ARGS="$COLLECTOR_COMMANDS_ARGS,`eval "(echo \\$CUSTOM_ALIAS_$alias)"`"
+            done
+            ANY_COLLECTOR_SELECTED=true
+            SHIFT_OPT="$SHIFT_OPT k $OPTARG"
             ;;
         p)  COLLECTOR_PROCESS=true
             ANY_COLLECTOR_SELECTED=true
@@ -95,10 +118,6 @@ while getopts "apnuywsdkblfe:P:R:T:VDUvh" opt; do
         d)  COLLECTOR_DISK_VOLUME_FILE_SYSTEM=true
             ANY_COLLECTOR_SELECTED=true
             SHIFT_OPT="$SHIFT_OPT d"
-            ;;
-        k)  COLLECTOR_DOCKER_VIRTUAL_MACHINE=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT k"
             ;;
         b)  COLLECTOR_BODY_FILE=true
             ANY_COLLECTOR_SELECTED=true
@@ -165,7 +184,7 @@ while getopts "apnuywsdkblfe:P:R:T:VDUvh" opt; do
                     uprintf "Invalid date range '$OPTARG'\n"
                     exit 11
                 fi
-                if [ "$DATE_RANGE_T2" ]; then                
+                if [ "$DATE_RANGE_T2" ]; then
                     if [ "$DATE_RANGE_T1" -gt "$DATE_RANGE_T2" ]; then
                         uprintf "Invalid date range '$OPTARG'\n"
                         exit 12
@@ -316,6 +335,12 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                     logging D "Collection started: $CURRENT_DATE_TIME\n"
 
                     # collectors
+                    # run commands collector
+                    $COLLECTOR_COMMANDS && $LIVE_COLLECTION && run_collector commands 2>> "$UAC_LOG_FILE"
+
+                    # run options collector
+                    $COLLECTOR_OPTIONS && $LIVE_COLLECTION && run_collector options 2>> "$UAC_LOG_FILE"
+
                     # run process collector
                     $COLLECTOR_PROCESS && $LIVE_COLLECTION && run_collector process 2>> "$UAC_LOG_FILE"
 
@@ -364,7 +389,7 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
 
                     # run hash_exec extension
                     $EXTENSION_HASH_EXEC && run_extension hash_exec 2>> "$UAC_LOG_FILE"
-                    
+
                     logging I "--------------------------------------------------------------------------------\n"
                     UAC_END_EPOCH=`get_epoch`
                     UAC_TOTAL_RUNNING_TIME=`expr $EXPR_DASH_DASH $UAC_END_EPOCH - $UAC_START_EPOCH`
@@ -374,7 +399,7 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
 
                     uprintf "Collection finished! Total running time: $UAC_TOTAL_RUNNING_TIME seconds.\n"
 
-                    if ${TAR_TOOL_AVAILABLE} && ${GZIP_TOOL_AVAILABLE}; then
+                    if ! $DEBUG && ${TAR_TOOL_AVAILABLE} && ${GZIP_TOOL_AVAILABLE}; then
                         # archive and compress output to file
                         uprintf "Creating compressed output file. Please wait...\n"
                         OUTPUT_FILE="$TMP_DATA_DIR.tar.gz"
@@ -390,7 +415,7 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                             uprintf "Please check collected data in '$DESTINATION_DIR/$TMP_DATA_DIR'\n"
                         fi
                         cd "$CWD"
-                    elif ${TAR_TOOL_AVAILABLE}; then
+                    elif ! $DEBUG && ${TAR_TOOL_AVAILABLE}; then
                         # archive output to file
                         uprintf "Creating output file. Please wait...\n"
                         OUTPUT_FILE="$TMP_DATA_DIR.tar"

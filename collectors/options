@@ -1,0 +1,117 @@
+# Copyright (C) 2019,2020 IBM Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the “License”);
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an “AS IS” BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# option collector
+stringContain() { [ -z "$1" ] || { [ -z "${2##*$1*}" ] && [ -n "$2" ];};}
+
+logging I ">> Searching and collecting files from CUSTOM with options : $COLLECTOR_OPTIONS_ARGS\n"
+
+logging D "Loading exclusions\n"
+# exclude paths
+run_command "cat \"$CWD/conf/exclude.conf\" | grep -v \"^#\" | grep -v \"^$\" | grep \"^/\" | sed 's:^/:'\"$MOUNT_POINT\"'/:; s://*:/:g; s:/$::g'" "$COLLECTOR_OUTPUT_DIR/.exclude.tmp"
+# exclude names
+run_command "cat \"$CWD/conf/exclude.conf\" | grep -v \"^#\" | grep -v \"^$\" | grep -v \"^/\"" "$COLLECTOR_OUTPUT_DIR/.exclude.tmp"
+run_command "cat \"$CWD/conf/exclude.conf\" | grep -v \"^#\" | grep -v \"^$\" | grep -v \"^/\"" "$COLLECTOR_OUTPUT_DIR/.exclude_names.tmp"
+# exclude mounted network file systems
+$EXCLUDE_MOUNTED_REMOTE_FILE_SYSTEMS && run_command "get_mount_points_to_exclude" "$COLLECTOR_OUTPUT_DIR/.exclude.tmp"
+
+
+# Add config filenames in .opt_conf_files.tmp
+if [ "$COLLECTOR_OPTIONS_ARGS" = "all" ]
+then
+    # All .conf files
+    run_command "ufind \"$CWD/conf/files/\" \"\" \"\" \"\" \"f\"" "$COLLECTOR_OUTPUT_DIR/.opt_conf_files.tmp"
+elif [ -n "$COLLECTOR_OPTIONS_ARGS" ]
+then
+    logging D "Loading options COLLECTOR_OPTIONS_ARGS : $COLLECTOR_OPTIONS_ARGS\n"
+    # Save option.conf in .list_conf_filenames.tmp file
+    for OPT_NAME in `echo "$COLLECTOR_OPTIONS_ARGS" | sed "s/,/\n/g" | sort | uniq`
+    do
+        logging D "Loading option $OPT_NAME.conf\n"
+        run_command "echo \"$OPT_NAME.conf\"" "$COLLECTOR_OUTPUT_DIR/.list_conf_filenames.tmp"
+    done
+    # Run ufind with .list_conf_filenames.tmp in files folder
+    run_command "ufind \"$CWD/conf/files/\" \"\" \"\" \"$COLLECTOR_OUTPUT_DIR/.list_conf_filenames.tmp\" \"f\"" "$COLLECTOR_OUTPUT_DIR/.opt_conf_files.tmp"
+    run_command "rm -f \"$COLLECTOR_OUTPUT_DIR/.list_conf_filenames.tmp\"" "/dev/null"
+    cat "$COLLECTOR_OUTPUT_DIR/.opt_conf_files.tmp"
+else
+    logging E "No option provided"
+fi
+
+
+run_command "find_home_dirs \"$COLLECTOR_OUTPUT_DIR/home_directories.txt\""
+
+
+# Run action for each config file
+cat "$COLLECTOR_OUTPUT_DIR/.opt_conf_files.tmp" | grep "\.conf" | while read OPT_FILENAME
+do
+    OPT_NAME=`echo \`basename "$OPT_FILENAME"\` | sed 's/\.conf//'`
+    OPT_OUTPUT_DIR="$COLLECTOR_OUTPUT_DIR/$OPT_NAME"
+    OPT_DIRECTORY=`basename "\`dirname "$OPT_FILENAME"\`"`
+    logging D "$OPT_NAME \t $OPT_FILENAME \t $OPT_OUTPUT_DIR \t $OPT_DIRECTORY\n"
+    mkdir "$OPT_OUTPUT_DIR"
+    if [ "$OPT_DIRECTORY" = "user" ]
+    then
+        run_command "cat \"$OPT_FILENAME\" | grep -v \"^#\" | grep -v \"^$\" | grep \"[^/]\" | sed 's:^/:'\"$MOUNT_POINT\"'/:; s://*:/:g; s:/$::g'" "$OPT_OUTPUT_DIR/.directories.tmp"
+        run_command "cat \"$OPT_OUTPUT_DIR/.directories.tmp\" | sort | uniq" "$OPT_OUTPUT_DIR/.directories_sort_uniq.tmp"
+        cat "$OPT_OUTPUT_DIR/.directories_sort_uniq.tmp" | while read line
+        do
+            cat "$COLLECTOR_OUTPUT_DIR/home_directories.txt" | while read USER_HOME_DIR
+            do
+                FIND_MAXDEPTH_PARAMETER="$USER_FILES_MAX_DEPTH"
+                if [ "$USER_HOME_DIR" = "/" ]; then
+                    FIND_MAXDEPTH_PARAMETER="2"
+                fi
+                run_command "ufindv2 \"$USER_HOME_DIR/$line\" \"$USER_FILES_MAX_DEPTH\" \"$OPT_OUTPUT_DIR/.exclude_names.tmp\" \"\" \"f\" \"$SUSPICIOUS_FILES_MAX_FILE_SIZE\" \"$DATE_RANGE_T1\" \"$DATE_RANGE_T2\"" "$OPT_OUTPUT_DIR/.files.tmp"
+            done
+        done
+    else
+        cat "$OPT_FILENAME" | grep -v "^#" | grep -v "^$" | grep '^$USER' | sed 's:^/:'"/"'/:; s://*:/:g; s:/$::g' | while read USER_PART
+        do
+            cat "$COLLECTOR_OUTPUT_DIR/home_directories.txt" | while read USER_HOME_DIR
+            do
+                echo "$USER_HOME_DIR`echo "$USER_PART" | cut -c 6-`" >> "$OPT_OUTPUT_DIR/.directories.tmp"
+            done
+        done
+        run_command "cat \"$OPT_FILENAME\" | grep -v \"^#\" | grep -v \"^$\" | grep \"^/\" | sed 's:^/:'\"$MOUNT_POINT\"'/:; s://*:/:g; s:/$::g'" "$OPT_OUTPUT_DIR/.directories.tmp"
+        run_command "cat \"$OPT_OUTPUT_DIR/.directories.tmp\" | sort | uniq" "$OPT_OUTPUT_DIR/.directories_sort_uniq.tmp"
+        run_command "cat \"$OPT_OUTPUT_DIR/.directories_sort_uniq.tmp\" | while read line; do ufindv2 \"\$line\" \"$USER_FILES_MAX_DEPTH\" \"$OPT_OUTPUT_DIR/.exclude_names.tmp\" \"\" \"f\" \"$SUSPICIOUS_FILES_MAX_FILE_SIZE\" \"$DATE_RANGE_T1\" \"$DATE_RANGE_T2\"; done " "$OPT_OUTPUT_DIR/.files.tmp"
+    fi
+    run_command "cat \"$OPT_OUTPUT_DIR/.files.tmp\" | grep -v \"$CWD\" | sort | uniq" "$COLLECTOR_OUTPUT_DIR/$OPT_NAME.txt"
+
+    if false && ${TAR_TOOL_AVAILABLE} && ${GZIP_TOOL_AVAILABLE}; then
+        run_command "archive_compress_data \"$COLLECTOR_OUTPUT_DIR/$OPT_NAME.txt\" \"$COLLECTOR_OUTPUT_DIR/$OPT_NAME.tar.gz\" true"
+        run_command "rm -rf \"$OPT_OUTPUT_DIR\"" "/dev/null"
+    elif false && ${TAR_TOOL_AVAILABLE}; then
+        # archive data
+        run_command "archive_data \"$COLLECTOR_OUTPUT_DIR/$OPT_NAME.txt\" \"$COLLECTOR_OUTPUT_DIR/$OPT_NAME.tar\" true"
+        run_command "rm -rf \"$OPT_OUTPUT_DIR\"" "/dev/null"
+    else
+        # just copy data
+        run_command "copy_data \"$COLLECTOR_OUTPUT_DIR/$OPT_NAME.txt\" \"$OPT_OUTPUT_DIR\""
+        run_command "rm -f \"$OPT_OUTPUT_DIR/.directories.tmp\"" "/dev/null"
+        run_command "rm -f \"$OPT_OUTPUT_DIR/.directories_sort_uniq.tmp\"" "/dev/null"
+        run_command "rm -f \"$OPT_OUTPUT_DIR/.files.tmp\"" "/dev/null"
+    fi
+done
+run_command "rm -f \"$COLLECTOR_OUTPUT_DIR/.exclude.tmp\"" "/dev/null"
+run_command "rm -f \"$COLLECTOR_OUTPUT_DIR/.exclude_names.tmp\"" "/dev/null"
+run_command "rm -f \"$COLLECTOR_OUTPUT_DIR/.opt_conf_files.tmp\"" "/dev/null"
+
+
+# search for file names
+# run_command "ufind \"$MOUNT_POINT\" \"$SUSPICIOUS_FILES_MAX_DEPTH\" \"$COLLECTOR_OUTPUT_DIR/.exclude.tmp\" \"$CWD/conf/suspicious_files.conf\" \"f\" \"$SUSPICIOUS_FILES_MAX_FILE_SIZE\" \"$DATE_RANGE_T1\" \"$DATE_RANGE_T2\"" "$COLLECTOR_OUTPUT_DIR/.suspicious_files.tmp"
+
+# # remove UAC working directory from the collection, sort and uniq
+# run_command "cat \"$COLLECTOR_OUTPUT_DIR/.suspicious_files.tmp\" | grep -v \"$CWD\" | sort | uniq" "$COLLECTOR_OUTPUT_DIR/suspicious_files.txt"

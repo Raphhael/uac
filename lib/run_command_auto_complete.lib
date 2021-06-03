@@ -1,0 +1,43 @@
+# Copyright (C) 2019,2020 IBM Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the “License”);
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an “AS IS” BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+################################################################################
+# NAME
+#   run_command_auto_complete - run command and create output file - used for command collector
+# SYNOPSIS
+#   run_command_auto_complete COMMAND DESTINATION
+# OPTIONS
+#   COMMAND        command
+#   DESTINATION    directory where the command output will be stored at without last '/'
+# RETURN VALUE
+#   Eval command exit status code
+################################################################################
+run_command_auto_complete() {
+    LOCAL_COMMAND="$1"
+    DIRECTORY_DESTINATION="$2"
+    LOCAL_OUTPUT_DESTINATION=`echo "$LOCAL_COMMAND" | sed 's/[^a-zA-Z0-9-]/ /g' | sed -r 's/_+/_/g'`
+    if [ `echo "$LOCAL_OUTPUT_DESTINATION" | wc -c` -gt 30 ]; then
+        LOCAL_OUTPUT_DESTINATION="`echo "$LOCAL_OUTPUT_DESTINATION" | cut -c -15`-`cat /proc/sys/kernel/random/uuid`"
+    fi
+    BASE_FILENAME="$DIRECTORY_DESTINATION/$LOCAL_OUTPUT_DESTINATION"
+    STDOUT_FILENAME="$BASE_FILENAME.stdout.txt"
+    STDERR_FILENAME="$BASE_FILENAME.stderr.txt"
+
+    if run_command "$LOCAL_COMMAND" "$STDOUT_FILENAME" "$STDERR_FILENAME"; then
+        echo "$LOCAL_COMMAND" >> "$DIRECTORY_DESTINATION/success.txt"
+    else
+        echo "$LOCAL_COMMAND" >> "$DIRECTORY_DESTINATION/failed.txt"
+    fi
+    [ ! -s "$STDERR_FILENAME" ] || [ ! "`cat "$STDERR_FILENAME | grep 'not found' | wc -l"`" = "0" ]  && rm -f "$STDERR_FILENAME"
+}

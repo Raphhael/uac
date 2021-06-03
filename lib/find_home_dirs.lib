@@ -1,0 +1,21 @@
+################################################################################
+# NAME
+#   find_home_dirs - find home directories
+# SYNOPSIS
+#   find_home_dirs DESTINATION
+# OPTIONS
+#   DESTINATION    file name where the command output will be stored at
+# RETURN VALUE
+#   list of home dirs
+################################################################################
+find_home_dirs() {
+    DESTINATION="$1"
+
+    if [ "$PROFILE" = "macos" ]; then
+        USERS_DIR=`sanitize_path "$MOUNT_POINT/Users"`
+        run_command "ufind \"$USERS_DIR\" \"1\" \"\" \"\" \"d\" " "$COLLECTOR_OUTPUT_DIR/home_directories.txt"
+    else
+        ETC_PASSWD=`sanitize_path "$MOUNT_POINT/etc/passwd"`
+        run_command "cat \"$ETC_PASSWD\" | grep -v \"^#\" | grep -v \"^$\" | cut -d\":\" -f6 | sort | uniq | grep -v '^/$'" "$DESTINATION"
+    fi
+}
