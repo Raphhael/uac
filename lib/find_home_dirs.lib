@@ -16,6 +16,6 @@ find_home_dirs() {
         run_command "ufind \"$USERS_DIR\" \"1\" \"\" \"\" \"d\" " "$COLLECTOR_OUTPUT_DIR/home_directories.txt"
     else
         ETC_PASSWD=`sanitize_path "$MOUNT_POINT/etc/passwd"`
-        run_command "cat \"$ETC_PASSWD\" | grep -v \"^#\" | grep -v \"^$\" | cut -d\":\" -f6 | sort | uniq | grep -v '^/$'" "$DESTINATION"
+        run_command "cat \"$ETC_PASSWD\" | grep -v \"^#\" | grep -v \"^$\"  | grep -v 'nologin$' |grep -v 'false$' | cut -d\":\" -f6 | sort | uniq | grep -v '^/$'" "$DESTINATION"
     fi
 }

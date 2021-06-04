@@ -1,3 +1,5 @@
+uac-*
+
 conf/commands/*
 !conf/commands/exemple.conf
 
