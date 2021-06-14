@@ -85,7 +85,7 @@ init_vars() {
 
     # Add alias
     ALIAS_CONFIG_FILE="$CWD/conf/alias.config"
-    if [ -s "$ALIAS_CONFIG_FILE" ] && cat "$ALIAS_CONFIG_FILE" | grep -v "^#" | grep -v \"^$\" | sed -e 's/^/CUSTOM_ALIAS_/' > "$ALIAS_CONFIG_FILE.tmp"; then
+    if [ -s "$ALIAS_CONFIG_FILE" ] && cat "$ALIAS_CONFIG_FILE" | grep -v "^#" | grep -v "^\s*$" | sed -e 's/^/CUSTOM_ALIAS_/' > "$ALIAS_CONFIG_FILE.tmp"; then
         logging I "init aliases : \n`cat "$ALIAS_CONFIG_FILE.tmp"`"
         . "$ALIAS_CONFIG_FILE.tmp"
         rm -f "$ALIAS_CONFIG_FILE.tmp"

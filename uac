@@ -406,6 +406,8 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                         cd "$DESTINATION_DIR"
                         if archive_compress_data "$TMP_DATA_DIR" "$OUTPUT_FILE"; then
                             uprintf "Compressed output file created at '$DESTINATION_DIR/$OUTPUT_FILE'\n"
+                            ln -f -s "$DESTINATION_DIR/$OUTPUT_FILE" last
+                            echo "$DESTINATION_DIR/$OUTPUT_FILE"
                             rm -rf "$TMP_DATA_DIR" > /dev/null 2> /dev/null
                             if [ -d "$TMP_DATA_DIR" ]; then
                                 uprintf "Cannot remove temporary directory '$DESTINATION_DIR/$TMP_DATA_DIR'\n"
@@ -413,6 +415,8 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                         else
                             uprintf "Cannot create compressed output file\n"
                             uprintf "Please check collected data in '$DESTINATION_DIR/$TMP_DATA_DIR'\n"
+                            echo "$DESTINATION_DIR/$TMP_DATA_DIR"
+                            ln -f -s "$DESTINATION_DIR/$TMP_DATA_DIR" last
                         fi
                         cd "$CWD"
                     elif ! $DEBUG && ${TAR_TOOL_AVAILABLE}; then
@@ -422,6 +426,8 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                         cd "$DESTINATION_DIR"
                         if archive_data "$TMP_DATA_DIR" "$OUTPUT_FILE"; then
                             uprintf "Output file created at '$DESTINATION_DIR/$OUTPUT_FILE'\n"
+                            echo "$DESTINATION_DIR/$OUTPUT_FILE"
+                            ln -f -s "$DESTINATION_DIR/$OUTPUT_FILE" last
                             rm -rf "$TMP_DATA_DIR" > /dev/null 2> /dev/null
                             if [ -d "$TMP_DATA_DIR" ]; then
                                 uprintf "Cannot remove temporary directory '$DESTINATION_DIR/$TMP_DATA_DIR'\n"
@@ -429,8 +435,13 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                         else
                             uprintf "Cannot create output file\n"
                             uprintf "Please check collected data in '$DESTINATION_DIR/$TMP_DATA_DIR'\n"
+                            echo "$DESTINATION_DIR/$TMP_DATA_DIR"
+                            ln -f -s "$DESTINATION_DIR/$TMP_DATA_DIR" last
                         fi
                         cd "$CWD"
+                    else
+                        echo "$DESTINATION_DIR/$TMP_DATA_DIR"
+                        ln -f -s "$DESTINATION_DIR/$TMP_DATA_DIR" last
                     fi
 
                     # hash output file if it exists
