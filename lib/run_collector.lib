@@ -22,9 +22,11 @@
 ################################################################################
 run_collector() {
     LOCAL_COLLECTOR_NAME="$1"
+    COLLECTOR_OUTPUT_DIR="$2"
     logging D "Loading $LOCAL_COLLECTOR_NAME collector\n"
     if [ -r "$CWD/collectors/$LOCAL_COLLECTOR_NAME" ]; then
-        COLLECTOR_OUTPUT_DIR="$DESTINATION_DIR/$TMP_DATA_DIR/collected_data/$LOCAL_COLLECTOR_NAME"
+        [ "$COLLECTOR_OUTPUT_DIR" = "" ] && COLLECTOR_OUTPUT_DIR="$DESTINATION_DIR/$TMP_DATA_DIR/collected_data/$LOCAL_COLLECTOR_NAME"
+        
         logging D "Creating $LOCAL_COLLECTOR_NAME collector output directory: $COLLECTOR_OUTPUT_DIR\n"
         mkdir -p "$COLLECTOR_OUTPUT_DIR"
 

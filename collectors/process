@@ -16,21 +16,8 @@
 
 logging I ">> Collecting running processes information\n"
 
-run_command "ps" "$COLLECTOR_OUTPUT_DIR/ps.txt"
-run_command "ps auxwww" "$COLLECTOR_OUTPUT_DIR/ps-auxwww.txt"
-run_command "ps -deaf" "$COLLECTOR_OUTPUT_DIR/ps-deaf.txt"
-run_command "ps -ef" "$COLLECTOR_OUTPUT_DIR/ps-ef.txt"
-run_command "ps -efl" "$COLLECTOR_OUTPUT_DIR/ps-efl.txt"
-run_command "ps -eo pid,etime,args" "$COLLECTOR_OUTPUT_DIR/ps-eo-pid-etime-args.txt"
-run_command "ps -eo pid,lstart,args" "$COLLECTOR_OUTPUT_DIR/ps-eo-pid-lstart-args.txt"
-run_command "lsof -n -P -l" "$COLLECTOR_OUTPUT_DIR/lsof-n-P-l.txt"
-
 case "$PROFILE" in
     "aix")
-        run_command "pstat -a" "$COLLECTOR_OUTPUT_DIR/pstat-a.txt"
-        run_command "pstat -A" "$COLLECTOR_OUTPUT_DIR/pstat-A.txt"
-        run_command "pstat -f" "$COLLECTOR_OUTPUT_DIR/pstat-f.txt"
-        run_command "pstat -p" "$COLLECTOR_OUTPUT_DIR/pstat-p.txt"
         # collect information from /proc/PID
         run_command "ls -la /proc/[0-9]*" "$COLLECTOR_OUTPUT_DIR/ls-la-proc-pid.txt"
         for LOCAL_PROC_DIRECTORY in /proc/[0-9]*; do
@@ -64,8 +51,6 @@ case "$PROFILE" in
         fi
         ;;
     "bsd")
-        run_command "fstat" "$COLLECTOR_OUTPUT_DIR/fstat.txt"
-        run_command "top -b" "$COLLECTOR_OUTPUT_DIR/top-b.txt"
         # some BSDs use /proc/PID/exe
         # e.g. NetBSD
         if [ -h "/proc/$$/exe" ]; then
@@ -195,8 +180,6 @@ case "$PROFILE" in
         fi
         ;;
     "linux")
-        run_command "pstree" "$COLLECTOR_OUTPUT_DIR/pstree.txt"
-        run_command "top -b -n1" "$COLLECTOR_OUTPUT_DIR/top-b-n1.txt"
         # collect information from /proc/PID
         run_command "ls -la /proc/[0-9]*" "$COLLECTOR_OUTPUT_DIR/ls-la-proc-pid.txt"
         run_command "find /proc/[0-9]*/exe -print | while read line; do ls -l \$line; done" "$COLLECTOR_OUTPUT_DIR/running_processes_full_paths.txt"
@@ -234,8 +217,6 @@ case "$PROFILE" in
         fi
         ;;
     "macos")
-        run_command "top -l1" "$COLLECTOR_OUTPUT_DIR/top-l1.txt"
-        run_command "ps -eo args | grep \"^/\" | awk '{print \$1}'" "$COLLECTOR_OUTPUT_DIR/running_processes_full_paths.txt"
         # hash running processes
         if [ -n "$MD5SUM_TOOL" ]; then
             logging I ">> Hashing running processes\n"
@@ -258,8 +239,6 @@ case "$PROFILE" in
         fi
         ;;
     "solaris")
-        run_command "ptree -a" "$COLLECTOR_OUTPUT_DIR/ptree-a.txt"
-        run_command "top -b" "$COLLECTOR_OUTPUT_DIR/top-b.txt"
         # collect information from /proc/PID
         run_command "ls -la /proc/[0-9]*/path" "$COLLECTOR_OUTPUT_DIR/ls-la-proc-pid-path.txt"
         run_command "find /proc/[0-9]*/path/a.out -print | while read line; do ls -l \$line; done" "$COLLECTOR_OUTPUT_DIR/running_processes_full_paths.txt"

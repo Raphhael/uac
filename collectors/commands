@@ -14,22 +14,35 @@
 
 # system collector
 
-logging I ">> Collecting system information with command collector: $COLLECTOR_COMMANDS_ARGS\n"
+logging I ">> Collecting system information with command collector: <$COLLECTOR_COMMANDS_ARGS>\n"
 
 logging D "[Command Collector] Create directory : $COLLECTOR_OUTPUT_DIR"
 mkdir "$COLLECTOR_OUTPUT_DIR"
 
-echo "$COLLECTOR_COMMANDS_ARGS" | sed "s/,/\n/g" | sort | uniq | while read OPT_NAME
+echo "$COLLECTOR_COMMANDS_ARGS" | sed "s/,/\n/g" | grep -v '^$' | sort | uniq | while read OPT_NAME
 do
-    logging D "[Command Collector] Command name $OPT_NAME (conf file : $OPT_FILENAME)\n"
+    [ "$OPT_NAME" = "" ] && logging D "OPT_NAME empty, skipping..." && continue
+
     OPT_FILENAME="$CWD/conf/commands/$OPT_NAME.conf"
+    logging D "[Command Collector] Command name \"$OPT_NAME\" (conf file : \"$OPT_FILENAME\")\n"
 
     # Check if .conf file exists for this option
-    [ ! -s "$OPT_FILENAME" ] && logging D "[Command Collector] Command file $OPT_FILENAME not found or empty" && continue
+    [ ! -s "$OPT_FILENAME" ] && logging D "[Command Collector] Command file \"$OPT_FILENAME\" not found or empty" && continue
+
+    COLLECTOR_OUTPUT_DIR_CMD="$COLLECTOR_OUTPUT_DIR/$OPT_NAME"
+
+    run_command "mkdir \"$COLLECTOR_OUTPUT_DIR_CMD\""
+
+
+    if [ "$OPT_NAME" = "ps" ]; then
+        TMP_COLLECTOR_OUTPUT_DIR="$COLLECTOR_OUTPUT_DIR"
+        $LIVE_COLLECTION && run_collector process 2>> "$UAC_LOG_FILE" "$COLLECTOR_OUTPUT_DIR_CMD"
+        COLLECTOR_OUTPUT_DIR="$TMP_COLLECTOR_OUTPUT_DIR"
+    fi
 
     cat "$OPT_FILENAME" | grep -v "^#" | grep -v "^$" | sed 's:^/:'""'/:; s://*:/:g; s:/$::g' | while read COMMAND
     do
         logging D "[Command Collector] Start commande $COMMAND\n"
-        run_command_auto_complete "$COMMAND" "$COLLECTOR_OUTPUT_DIR"
+        run_command_auto_complete "$COMMAND" "$COLLECTOR_OUTPUT_DIR_CMD"
     done
 done

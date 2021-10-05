@@ -30,14 +30,20 @@ run_command_auto_complete() {
     if [ `echo "$LOCAL_OUTPUT_DESTINATION" | wc -c` -gt 30 ]; then
         LOCAL_OUTPUT_DESTINATION="`echo "$LOCAL_OUTPUT_DESTINATION" | cut -c -15`-`cat /proc/sys/kernel/random/uuid`"
     fi
-    BASE_FILENAME="$DIRECTORY_DESTINATION/$LOCAL_OUTPUT_DESTINATION"
-    STDOUT_FILENAME="$BASE_FILENAME.stdout.txt"
-    STDERR_FILENAME="$BASE_FILENAME.stderr.txt"
+    STDOUT_FILENAME="$DIRECTORY_DESTINATION/$LOCAL_OUTPUT_DESTINATION.stdout.txt"
+    STDERR_FILENAME="$DIRECTORY_DESTINATION/$LOCAL_OUTPUT_DESTINATION.stderr.txt"
 
-    if run_command "$LOCAL_COMMAND" "$STDOUT_FILENAME" "$STDERR_FILENAME"; then
-        echo "$LOCAL_COMMAND" >> "$DIRECTORY_DESTINATION/success.txt"
+    CMD_PART=`echo "$LOCAL_COMMAND" | sed --regexp-extended 's/^ *([^ ]+) ?.*$/\1/'`
+    if command -v "$CMD_PART" > /dev/null 2>&1; then
+        if run_command "$LOCAL_COMMAND" "$STDOUT_FILENAME" "$STDERR_FILENAME"; then
+            echo "$LOCAL_COMMAND" >> "$DIRECTORY_DESTINATION/_success.txt"
+        else
+            echo "$LOCAL_COMMAND" >> "$DIRECTORY_DESTINATION/_failed.txt"
+        fi
+        $DEL_EMPTY_STDERR_FILES && [ ! -s "$STDERR_FILENAME" ] && rm -f "$STDERR_FILENAME"
+        $DEL_EMPTY_STDOUT_FILES && [ ! -s "$STDOUT_FILENAME" ] && rm -f "$STDOUT_FILENAME"
     else
-        echo "$LOCAL_COMMAND" >> "$DIRECTORY_DESTINATION/failed.txt"
+        logging D "Command ignored \"$CMD_PART\" : \"$LOCAL_COMMAND\""
+        echo "$LOCAL_COMMAND" >> "$DIRECTORY_DESTINATION/_command_not_found.txt"
     fi
-    [ ! -s "$STDERR_FILENAME" ] || [ ! "`cat "$STDERR_FILENAME | grep 'not found' | wc -l"`" = "0" ]  && rm -f "$STDERR_FILENAME"
 }

@@ -51,23 +51,30 @@ init_vars
 trap terminate INT TERM
 
 SHIFT_OPT=""
-while getopts "apnuywsdblf:c:o:k:e:P:R:T:VDUvh" opt; do
+while getopts "apnuyb:i:c:o:k:e:P:R:T:VDUvh" opt; do
     case $opt in
         # collectors
         a)  COLLECTOR_PROCESS=true
             COLLECTOR_NETWORK=true
             COLLECTOR_USER=true
             COLLECTOR_SYSTEM=true
-            COLLECTOR_HARDWARE=true
-            COLLECTOR_SOFTWARE=true
-            COLLECTOR_DISK_VOLUME_FILE_SYSTEM=true
-            COLLECTOR_DOCKER_VIRTUAL_MACHINE=true
             COLLECTOR_BODY_FILE=true
-            COLLECTOR_LOGS=true
-            COLLECTOR_SUSPICIOUS_FILES=true
             ANY_COLLECTOR_SELECTED=true
             SHIFT_OPT="$SHIFT_OPT A"
             ;;
+        p)  COLLECTOR_PROCESS=true
+            ANY_COLLECTOR_SELECTED=true
+            SHIFT_OPT="$SHIFT_OPT p"
+            ;;
+        b)  COLLECTOR_BODY_FILE=true
+            ANY_COLLECTOR_SELECTED=true
+            SHIFT_OPT="$SHIFT_OPT b"
+            ;;
+        # custom archive name
+        i)  CUSTOM_ARCHIVE_NAME="$OPTARG"
+            SHIFT_OPT="$SHIFT_OPT i $OPTARG"
+            ;;
+        # custom collectors
         c)  COLLECTOR_COMMANDS=true
             COLLECTOR_COMMANDS_ARGS="$COLLECTOR_COMMANDS_ARGS,`echo "$OPTARG" | sed 's/ //g'`"
             ANY_COLLECTOR_SELECTED=true
@@ -90,46 +97,6 @@ while getopts "apnuywsdblf:c:o:k:e:P:R:T:VDUvh" opt; do
             done
             ANY_COLLECTOR_SELECTED=true
             SHIFT_OPT="$SHIFT_OPT k $OPTARG"
-            ;;
-        p)  COLLECTOR_PROCESS=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT p"
-            ;;
-        n)  COLLECTOR_NETWORK=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT n"
-            ;;
-        u)  COLLECTOR_USER=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT u"
-            ;;
-        y)  COLLECTOR_SYSTEM=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT y"
-            ;;
-        w)  COLLECTOR_HARDWARE=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT w"
-            ;;
-        s)  COLLECTOR_SOFTWARE=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT s"
-            ;;
-        d)  COLLECTOR_DISK_VOLUME_FILE_SYSTEM=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT d"
-            ;;
-        b)  COLLECTOR_BODY_FILE=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT b"
-            ;;
-        l)  COLLECTOR_LOGS=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT l"
-            ;;
-        f)  COLLECTOR_SUSPICIOUS_FILES=true
-            ANY_COLLECTOR_SELECTED=true
-            SHIFT_OPT="$SHIFT_OPT f"
             ;;
         # extensions
         e)  for EXTENSION in `echo "$OPTARG" | sed 's:,: :g'`; do
@@ -271,10 +238,18 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                     KERNEL_NAME=`uname -s`
                     MACHINE_ARCH=`get_machine_arch`
                     # create a tmp dir to store all collected data
-                    TMP_DATA_DIR="uac-$HOSTNAME-$PROFILE-$CURRENT_DATE_TIME"
+                    if [ "$CUSTOM_ARCHIVE_NAME" = "" ]; then
+                        TMP_DATA_DIR="uac-$HOSTNAME-$PROFILE-$CURRENT_DATE_TIME"
+                    else
+                        TMP_DATA_DIR="uac-$CUSTOM_ARCHIVE_NAME-$HOSTNAME"
+                    fi
                 else
                     # create a tmp dir to store all collected data
-                    TMP_DATA_DIR="uac-mounted_image-$PROFILE-$CURRENT_DATE_TIME"
+                    if [ "$CUSTOM_ARCHIVE_NAME" = "" ]; then
+                        TMP_DATA_DIR="uac-mounted_image-$HOSTNAME-$PROFILE-$CURRENT_DATE_TIME"
+                    else
+                        TMP_DATA_DIR="uac-mounted_image-$CUSTOM_ARCHIVE_NAME-$HOSTNAME-$CURRENT_DATE_TIME"
+                    fi
                 fi
 
                 mkdir "$DESTINATION_DIR/$TMP_DATA_DIR" > /dev/null
@@ -314,6 +289,7 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                         if [ -d "$CWD/bin/$KERNEL_NAME_LOWERCASE/$MACHINE_ARCH_LOWERCASE" ]; then
                             logging D "Validated tools directory found at $CWD/bin/$KERNEL_NAME_LOWERCASE/$MACHINE_ARCH_LOWERCASE\n"
                             run_command "ls \"$CWD/bin/$KERNEL_NAME_LOWERCASE/$MACHINE_ARCH_LOWERCASE\"" "$UAC_LOG_FILE"
+                            ls "$CWD/bin/$KERNEL_NAME_LOWERCASE/$MACHINE_ARCH_LOWERCASE"
                             PATH="$CWD/bin/$KERNEL_NAME_LOWERCASE/$MACHINE_ARCH_LOWERCASE:$PATH"
                             export PATH
                         fi
@@ -353,18 +329,6 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
                     # run system collector
                     $COLLECTOR_SYSTEM && $LIVE_COLLECTION && run_collector system 2>> "$UAC_LOG_FILE"
 
-                    # run hardware collector
-                    $COLLECTOR_HARDWARE && $LIVE_COLLECTION && run_collector hardware 2>> "$UAC_LOG_FILE"
-
-                    # run software collector
-                    $COLLECTOR_SOFTWARE && $LIVE_COLLECTION && run_collector software 2>> "$UAC_LOG_FILE"
-
-                    # run disk_volume_file_system collector
-                    $COLLECTOR_DISK_VOLUME_FILE_SYSTEM && $LIVE_COLLECTION && run_collector disk_volume_file_system 2>> "$UAC_LOG_FILE"
-
-                    # run docker_virtual_machine collector
-                    $COLLECTOR_DOCKER_VIRTUAL_MACHINE && $LIVE_COLLECTION && run_collector docker_virtual_machine 2>> "$UAC_LOG_FILE"
-
                     # run body_file collector
                     $COLLECTOR_BODY_FILE && run_collector body_file 2>> "$UAC_LOG_FILE"
 
@@ -373,12 +337,6 @@ if $ANY_COLLECTOR_SELECTED || $ANY_EXTENSION_SELECTED; then
 
                     # run user_files collector
                     $COLLECTOR_USER && run_collector user_files 2>> "$UAC_LOG_FILE"
-
-                    # run logs collector
-                    $COLLECTOR_LOGS && run_collector logs 2>> "$UAC_LOG_FILE"
-
-                    # run suspicious_files collector
-                    $COLLECTOR_SUSPICIOUS_FILES && run_collector suspicious_files 2>> "$UAC_LOG_FILE"
 
                     # extensions
                     # run chkrootkit extension
