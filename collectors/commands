@@ -34,11 +34,11 @@ do
     run_command "mkdir \"$COLLECTOR_OUTPUT_DIR_CMD\""
 
 
-    if [ "$OPT_NAME" = "ps" ]; then
-        TMP_COLLECTOR_OUTPUT_DIR="$COLLECTOR_OUTPUT_DIR"
-        $LIVE_COLLECTION && run_collector process 2>> "$UAC_LOG_FILE" "$COLLECTOR_OUTPUT_DIR_CMD"
-        COLLECTOR_OUTPUT_DIR="$TMP_COLLECTOR_OUTPUT_DIR"
-    fi
+    # if [ "$OPT_NAME" = "ps" ]; then
+    #     TMP_COLLECTOR_OUTPUT_DIR="$COLLECTOR_OUTPUT_DIR"
+    #     $LIVE_COLLECTION && run_collector process 2>> "$UAC_LOG_FILE" "$COLLECTOR_OUTPUT_DIR_CMD"
+    #     COLLECTOR_OUTPUT_DIR="$TMP_COLLECTOR_OUTPUT_DIR"
+    # fi
 
     cat "$OPT_FILENAME" | grep -v "^#" | grep -v "^$" | sed 's:^/:'""'/:; s://*:/:g; s:/$::g' | while read COMMAND
     do
